@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+venv39/
+env/
+.venv/
+
+# TensorFlow / training artifacts
+trained/*.hdf5
+trained/labels.json
+trained/logs/
+!trained/deepfake_hybrid_model.h5
+
+# Uploads & data
+uploads/
+data/*/
+!data/real/
+!data/fake/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+

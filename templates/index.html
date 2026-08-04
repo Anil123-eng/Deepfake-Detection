@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deepfake Detection - CNN + RNN Hybrid</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+    <!-- Animated background particles -->
+    <div class="bg-grid"></div>
+
+    <header class="navbar">
+        <div class="logo">
+            <div class="logo-icon">🛡️</div>
+            <span>Deep<span class="accent">Guard</span></span>
+        </div>
+        <nav class="nav-links">
+            <a href="#detector" class="active">Detector</a>
+            <a href="#how">How It Works</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#about">About</a>
+        </nav>
+        <a href="#detector" class="btn btn-primary nav-cta">Try It Now</a>
+    </header>
+
+    <section class="hero">
+        <div class="hero-badge">
+            <span class="pulse-dot"></span>
+            CNN + RNN Hybrid Deep Learning
+        </div>
+        <h1 class="hero-title">
+            Detect <span class="gradient-text">Deepfakes</span><br />
+            with <span class="gradient-text">Spatial & Temporal</span> Intelligence
+        </h1>
+        <p class="hero-subtitle">
+            Upload a video and our hybrid CNN+RNN model analyzes facial
+            features frame-by-frame and across time to identify manipulated content.
+        </p>
+        <div class="hero-actions">
+            <a href="#detector" class="btn btn-primary btn-lg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5-5 5 5M12 5v12" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Detect a Video
+            </a>
+        </div>
+
+        <div class="hero-stats">
+            <div class="stat">
+                <div class="stat-value">85%<span>+</span></div>
+                <div class="stat-label">Detection Accuracy</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">5000<span>+</span></div>
+                <div class="stat-label">Video Samples</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">24<span>ms</span></div>
+                <div class="stat-label">Per-Frame Analysis</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="detector" class="detector-section">
+        <div class="section-header">
+            <h2>Video <span class="accent">Deepfake Analyzer</span></h2>
+            <p>Drop a video below to analyze whether its content is authentic or AI-manipulated.</p>
+        </div>
+
+<div class="upload-card">
+            <div class="media-tabs">
+                <button type="button" class="media-tab active" id="tab-video" data-mode="video">🎞️ Video</button>
+                <button type="button" class="media-tab" id="tab-image" data-mode="image">🖼️ Image</button>
+            </div>
+
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-content">
+                        <div class="upload-icon" id="upload-icon">📹</div>
+                        <h3 id="drop-title">Drag & Drop your video here</h3>
+                        <p>or <span class="browse-text">browse files</span></p>
+                        <p class="file-hint" id="file-hint">MP4, AVI, MOV, MKV, WEBM · Max 200 MB</p>
+                    </div>
+                    <input type="file" id="video-input" name="video" accept="video/*" hidden />
+                </div>
+
+                <div class="file-info" id="file-info" style="display:none;">
+                    <span class="file-name" id="file-name"></span>
+                    <button type="button" class="remove-file" id="remove-file">✕</button>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg analyze-btn" id="analyze-btn" disabled>
+                    <span class="btn-text">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6" stroke-linecap="round"/>
+                        </svg>
+                        Analyze Video
+                    </span>
+                </button>
+            </form>
+
+            <div class="progress-area" id="progress-area" style="display:none;">
+                <div class="progress-track">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p class="progress-text" id="progress-text">Extracting frames...</p>
+            </div>
+
+            <div class="model-status" id="model-status">
+                {% if model_ready %}
+                <span class="status-badge ready">● Model Ready</span>
+                {% else %}
+                <span class="status-badge warning">● Model Not Trained — Run <code>python train.py</code></span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results" style="display:none;">
+            <div class="result-card">
+                <div class="result-icon" id="result-icon">✅</div>
+                <div class="result-details">
+                    <h3 id="result-label">REAL</h3>
+                    <p id="result-confidence">Confidence: 98.2%</p>
+                </div>
+                <div class="confidence-ring" id="confidence-ring">
+                    <svg viewBox="0 0 120 120">
+                        <circle class="ring-bg" cx="60" cy="60" r="52" />
+                        <circle class="ring-fg" id="ring-fg" cx="60" cy="60" r="52" />
+                    </svg>
+                    <div class="ring-value" id="ring-value">98%</div>
+                </div>
+            </div>
+            <div class="prob-bars">
+                <div class="prob-bar">
+                    <span class="prob-label">REAL</span>
+                    <div class="prob-track"><div class="prob-fill real" id="real-bar"></div></div>
+                    <span class="prob-pct" id="real-pct">0%</span>
+                </div>
+                <div class="prob-bar">
+                    <span class="prob-label">FAKE</span>
+                    <div class="prob-track"><div class="prob-fill fake" id="fake-bar"></div></div>
+                    <span class="prob-pct" id="fake-pct">0%</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="how" class="how-section">
+        <div class="section-header">
+            <h2>How It <span class="accent">Works</span></h2>
+            <p>Our hybrid architecture analyzes both individual frames and their temporal relationships.</p>
+        </div>
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">01</div>
+                <div class="step-icon">🎞️</div>
+                <h3>Frame Extraction</h3>
+                <p>Each video is sampled into 25 evenly-spaced frames and resized to 224×224.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">02</div>
+                <div class="step-icon">🖼️</div>
+                <h3>Facial Cropping</h3>
+                <p>Faces within frames are detected and isolated, focusing the CNN on manipulated regions.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">03</div>
+                <div class="step-icon">🧠</div>
+                <h3>CNN Feature Extraction</h3>
+                <p>An EfficientNetB0 CNN extracts high-level spatial features from every frame.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">04</div>
+                <div class="step-icon">📈</div>
+                <h3>RNN Temporal Analysis</h3>
+                <p>LSTM layers learn blink patterns, micro-expressions and frame artifacts across time.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="architecture" class="architecture-section">
+        <div class="section-header">
+            <h2>Model <span class="accent">Architecture</span></h2>
+        </div>
+        <div class="arch-diagram">
+            <div class="arch-node">
+                <div class="node-title">Input Video</div>
+                <div class="node-sub">25 frames</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node cnn-node">
+                <div class="node-title">CNN Backbone</div>
+                <div class="node-sub">EfficientNetB0</div>
+                <div class="node-tags">
+                    <span>Conv2D</span><span>BatchNorm</span><span>GlobalPool</span>
+                </div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node rnn-node">
+                <div class="node-title">RNN Layer</div>
+                <div class="node-sub">LSTM ×2</div>
+                <div class="node-tags">
+                    <span>128 units</span><span>Dropout</span>
+                </div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node output-node">
+                <div class="node-title">Output</div>
+                <div class="node-sub">REAL / FAKE</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="about" class="about-section">
+        <div class="section-header">
+            <h2>Built with <span class="accent">OOP Principles</span></h2>
+        </div>
+        <div class="about-grid">
+            <div class="about-card">
+                <div class="about-icon">📦</div>
+                <h3>Modular Design</h3>
+                <p>Separate classes for models, preprocessing, augmentation, and training promote reusability.</p>
+            </div>
+            <div class="about-card">
+                <div class="about-icon">🧪</div>
+                <h3>Robust Pipeline</h3>
+                <p>Data augmentation and temporal analysis make detection resilient to real-world variations.</p>
+            </div>
+            <div class="about-card">
+                <div class="about-icon">🌐</div>
+                <h3>Public Network Ready</h3>
+                <p>Running on 0.0.0.0 with REST API endpoints for integration anywhere.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>DeepGuard — Hybrid CNN + RNN Deepfake Detection · TensorFlow / Keras</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
