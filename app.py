@@ -24,10 +24,18 @@ from flask import Flask, jsonify, render_template, request, url_for
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
+# Configure TensorFlow for constrained (cloud/free-tier) environments:
+#   - Use CPU only (Render free tier has no GPU).
+#   - Limit memory growth so we don't get killed by the OS.
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")
+
 from config import get_config
 from preprocessing.feature_extractor import FeaturePipeline
 from preprocessing.image_processor import ImageProcessor
 from models.model_trainer import HybridModelTrainer
+from models.image_classifier import ImageClassifier
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,27 +54,75 @@ app = Flask(
 app.config["MAX_CONTENT_LENGTH"] = config.MAX_CONTENT_LENGTH
 CORS(app)  # Enable cross-origin requests for public access
 
-# Global model (lazy-loaded on first request)
-_model = None
+# Global models (loaded lazily on first request to keep startup fast,
+# especially important on constrained cloud tiers).
+_video_model = None
+_image_model = None
+_model_error = None
 _model_loaded = False
 _pipeline = FeaturePipeline(config)
 _image_processor = ImageProcessor(config)
 
 
 def get_model():
-    """Lazy-load the trained hybrid model."""
-    global _model, _model_loaded
+    """Return the loaded video (hybrid) model, or None if unavailable."""
+    return get_video_model()
+
+
+def get_video_model():
+    """Lazy-load the hybrid video model."""
+    global _video_model, _model_loaded, _model_error
     if not _model_loaded:
-        if config.MODEL_PATH.exists():
-            logger.info("Loading trained model...")
-            _model = HybridModelTrainer.load(config.MODEL_PATH)
-        else:
-            logger.warning(
-                "No trained model found. Some features will be limited."
-            )
-            _model = None
         _model_loaded = True
-    return _model
+        if config.MODEL_PATH.exists():
+            try:
+                logger.info("Loading video model...")
+                _video_model = HybridModelTrainer.load(config.MODEL_PATH)
+                logger.info("Video model loaded.")
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("Failed to load video model")
+                _model_error = str(exc)
+                _video_model = None
+        else:
+            _video_model = None
+    return _video_model
+
+
+def get_image_model():
+    """
+    Lazy-load the lightweight image classifier.
+
+    Prefers the dedicated image classifier model. If it is not available,
+    a trained video model is loaded anyway since its CNN backbone can also
+    classify a single image (as a repeated-frame sequence).
+    """
+    global _image_model
+    if _image_model is not None:
+        return _image_model
+
+    img_path = config.TRAINED_DIR / "image_classifier.h5"
+    if img_path.exists():
+        try:
+            logger.info("Loading image classifier...")
+            _image_model = ImageClassifier.load(img_path)
+            logger.info("Image classifier loaded.")
+            return _image_model
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to load image classifier: %s", exc)
+            _image_model = False  # cache failure -> fall back to video model
+
+    # Fallback to the video model
+    logger.warning("No dedicated image classifier found; using video model.")
+    return get_video_model()
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Return JSON for any unhandled error so the client never gets an
+    empty / non-JSON response body."""
+    logger.exception("Unhandled exception")
+    message = str(e) or e.__class__.__name__
+    return jsonify({"error": message}), 500
 
 
 def allowed_file(filename):
@@ -88,7 +144,10 @@ def allowed_image_file(filename):
 @app.route("/")
 def index():
     """Render the main upload page."""
-    model_ready = config.MODEL_PATH.exists()
+    model_ready = (
+        config.MODEL_PATH.exists()
+        or (config.TRAINED_DIR / "image_classifier.h5").exists()
+    )
     return render_template("index.html", model_ready=model_ready)
 
 
@@ -172,8 +231,8 @@ def predict():
 @app.route("/api/predict_image", methods=["POST"])
 def predict_image():
     """Handle image upload and return a real/fake prediction."""
-    model = get_model()
-    if model is None:
+    model = get_image_model()
+    if model is None or model is False:
         return jsonify(
             {
                 "error": "Model not trained yet. Please upload training data "
@@ -199,10 +258,18 @@ def predict_image():
     file.save(str(upload_path))
 
     try:
-        # Build a 1-sample sequence from the image (repeated frames)
-        # so it can be fed through the hybrid CNN + RNN model.
-        seq_batch = _image_processor.to_sequence(upload_path, crop_face=True)
-        probs = model.predict(seq_batch)[0]
+        # Determine whether `model` is a dedicated image classifier (expects
+        # a 4D image batch) or the fallback video model (expects a 5D
+        # sequence). Use the image processor accordingly.
+        has_image_shape = hasattr(model, "input_shape") and len(model.input_shape) == 4
+        if has_image_shape:
+            img = _image_processor.load_image(upload_path, crop_face=True)
+            probs = model.predict(img[np.newaxis, ...])[0]
+        else:
+            # Fallback: repeat the image into a video-style sequence.
+            seq_batch = _image_processor.to_sequence(upload_path, crop_face=True)
+            probs = model.predict(seq_batch)[0]
+
         fake_prob = float(probs[1])
         real_prob = float(probs[0])
 

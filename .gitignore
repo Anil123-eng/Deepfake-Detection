@@ -15,7 +15,9 @@ env/
 trained/*.hdf5
 trained/labels.json
 trained/logs/
+# Keep the deployed models (needed for Render to work out of the box)
 !trained/deepfake_hybrid_model.h5
+!trained/image_classifier.h5
 
 # Uploads & data
 uploads/

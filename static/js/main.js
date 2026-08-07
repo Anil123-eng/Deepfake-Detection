@@ -168,10 +168,29 @@
                 body: formData,
             });
 
-            const data = await response.json();
+            // Read as text first so we can handle partial/empty/non-JSON
+            // responses gracefully (e.g. proxies or upstream errors).
+            const text = await response.text();
+            let data = null;
+            try {
+                data = text ? JSON.parse(text) : null;
+            } catch (e) {
+                data = null;
+            }
 
             if (!response.ok) {
-                throw new Error(data.error || "Analysis failed. Please try again.");
+                const message =
+                    (data && data.error) ||
+                    (text ? text : "Server returned an empty response.");
+                throw new Error(message);
+            }
+
+            if (!data || typeof data.prediction === "undefined") {
+                throw new Error(
+                    "The server returned an unexpected response. " +
+                    "If this is a free / cold-started instance, the model may still be " +
+                    "loading or the request timed out. Please try again in a moment."
+                );
             }
 
             stopProgressSimulation();
