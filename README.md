@@ -118,13 +118,37 @@ The application binds to `0.0.0.0` by default, which exposes it to your local ne
 
 ### For full public internet access (optional):
 
-**Option A — Ngrok tunnel** (easiest):
+**Option A — Ngrok tunnel** (fastest for local testing):
 ```bash
 ngrok http 5000
 ```
 
-**Option B — Deploy to a cloud platform** (recommended):
-- **Render** / **Railway** / **Hugging Face Spaces**: set `HOST=0.0.0.0`, `PORT=<assigned port>`, and deploy `run.py`.
+**Option B — Deploy to Render (recommended, permanent public URL)**:
+
+This repo is already configured for Render deployment via a `Procfile` and `gunicorn`.
+
+1. Push this repository to GitHub.
+2. Go to [https://render.com](https://render.com) → **New** → **Web Service**.
+3. Connect your GitHub repo containing this project.
+4. Use these settings:
+   - **Name**: `deepfake-detection`
+   - **Environment**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300 --workers 1`
+5. Add the environment variables:
+   - `APP_ENV` = `production`
+   - `HOST` = `0.0.0.0`
+6. Select the **Free** instance type and click **Create Web Service**.
+
+Render will build the app (TensorFlow install takes a few minutes on first deploy). Once live, you get a permanent public URL like:
+```
+https://deepfake-detection.onrender.com
+```
+
+> ⚠️ **Note**: On Render's free tier, the instance **spins down after 15 minutes of inactivity** and takes ~1 minute to wake on the next request. Upgrade to a paid plan (or use a cron pinger) for always-on availability.
+
+**Option C — Other cloud platforms**:
+- **Railway** / **Hugging Face Spaces**: set `HOST=0.0.0.0`, `PORT=<assigned port>`, and deploy with `gunicorn app:app`.
 - **AWS EC2 / GCP**: open the port in security groups and run with `gunicorn`.
 
 ### Environment Variables
@@ -132,7 +156,7 @@ ngrok http 5000
 | Variable | Default | Description |
 |---|---|---|
 | `HOST` | `0.0.0.0` | Bind address |
-| `PORT` | `5000` | HTTP port |
+| `PORT` | `5000` | HTTP port (Render injects its own) |
 | `APP_ENV` | `development` | `development` or `production` |
 
 ---
