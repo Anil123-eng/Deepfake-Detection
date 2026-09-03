@@ -64,7 +64,7 @@ class Config:
     # ------------------------------------------------------------------
     # Web server
     # ------------------------------------------------------------------
-    HOST = "0.0.0.0"                  # Public network access
+    HOST = os.getenv("HOST", "127.0.0.1")  # Localhost by default
     PORT = int(os.getenv("PORT", 5000))
     DEBUG = False
     MAX_CONTENT_LENGTH = 200 * 1024 * 1024  # 200 MB upload limit
@@ -95,7 +95,7 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Production/public deployment configuration."""
     DEBUG = False
-    # Adjust host/port for public network exposure
+    # Production services need to listen on all interfaces.
     HOST = os.getenv("HOST", "0.0.0.0")
     PORT = int(os.getenv("PORT", 5000))
 

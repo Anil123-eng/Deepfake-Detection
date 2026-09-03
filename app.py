@@ -34,8 +34,6 @@ os.environ.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")
 from config import get_config
 from preprocessing.feature_extractor import FeaturePipeline
 from preprocessing.image_processor import ImageProcessor
-from models.model_trainer import HybridModelTrainer
-from models.image_classifier import ImageClassifier
 
 logging.basicConfig(
     level=logging.INFO,
@@ -77,6 +75,9 @@ def get_video_model():
         if config.MODEL_PATH.exists():
             try:
                 logger.info("Loading video model...")
+                # Lazy import so TensorFlow is not loaded at module import
+                # time (keeps gunicorn worker memory low on free tier).
+                from models.model_trainer import HybridModelTrainer
                 _video_model = HybridModelTrainer.load(config.MODEL_PATH)
                 logger.info("Video model loaded.")
             except Exception as exc:  # noqa: BLE001
@@ -104,6 +105,8 @@ def get_image_model():
     if img_path.exists():
         try:
             logger.info("Loading image classifier...")
+            # Lazy import so TensorFlow is not loaded at module import time.
+            from models.image_classifier import ImageClassifier
             _image_model = ImageClassifier.load(img_path)
             logger.info("Image classifier loaded.")
             return _image_model
@@ -261,17 +264,28 @@ def predict_image():
         # Determine whether `model` is a dedicated image classifier (expects
         # a 4D image batch) or the fallback video model (expects a 5D
         # sequence). Use the image processor accordingly.
-        has_image_shape = hasattr(model, "input_shape") and len(model.input_shape) == 4
-        if has_image_shape:
+        #
+        # The wrapped Keras model may be accessed via `.model` (both
+        # ImageClassifier and HybridModelTrainer expose `.model`). Inspect
+        # the actual Keras input tensor to decide the correct input shape.
+        keras_model = getattr(model, "model", model)
+        input_ndim = len(keras_model.inputs[0].shape)
+        if input_ndim == 4:
+            # Dedicated image classifier: expects (batch, H, W, C).
             img = _image_processor.load_image(upload_path, crop_face=True)
             probs = model.predict(img[np.newaxis, ...])[0]
+            # The deployed image-classifier artifact was trained with its
+            # output neurons in the order [FAKE, REAL], unlike the hybrid
+            # video model's [REAL, FAKE] order. Keep this conversion local to
+            # image predictions so video predictions retain their mapping.
+            fake_prob = float(probs[0])
+            real_prob = float(probs[1])
         else:
             # Fallback: repeat the image into a video-style sequence.
             seq_batch = _image_processor.to_sequence(upload_path, crop_face=True)
             probs = model.predict(seq_batch)[0]
-
-        fake_prob = float(probs[1])
-        real_prob = float(probs[0])
+            fake_prob = float(probs[1])
+            real_prob = float(probs[0])
 
         label = "FAKE" if fake_prob >= 0.5 else "REAL"
         confidence = max(fake_prob, real_prob)

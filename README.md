@@ -11,7 +11,7 @@ A production-ready deep learning system for detecting manipulated video content 
 - **Video & Image Detection**: Detect deepfakes in both videos and still images.
 - **Web Interface**: Drag-and-drop video/image upload with animated confidence visualization.
 - **REST API**: Programmatic access to prediction via `/api/predict` (video) and `/api/predict_image` (image).
-- **Public Network Ready**: Runs on `0.0.0.0` for LAN/public access (tunnel or cloud deployment).
+- **Localhost Ready**: Runs on `127.0.0.1` for local development; production can bind to `0.0.0.0`.
 
 ---
 
@@ -54,15 +54,17 @@ Deepfake_Detection/
 
 ### 1. Setup Environment
 
+Use Python **3.9–3.11** for the pinned TensorFlow 2.15 dependencies. Python 3.14 is not compatible with this requirements file.
+
 ```bash
 # Create & activate a Python virtual environment
-python -m venv venv
+py -3.11 -m venv .venv
 
 # Windows
-venv\Scripts\activate
+.venv\Scripts\activate
 
 # macOS/Linux
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### 2. Install Dependencies
@@ -108,13 +110,29 @@ The model will be saved to `trained/deepfake_hybrid_model.h5`.
 python run.py
 ```
 
-Open **http://localhost:5000** locally, or access from any device on your network via your machine's IP.
+Open **http://localhost:5000** in your browser. The development server binds only to your local machine by default.
+
+To use another local port or explicitly select development mode:
+
+```bash
+# Windows PowerShell
+$env:APP_ENV = "development"
+$env:PORT = "5000"
+python run.py
+```
+
+For LAN access during development, set the host before starting the app:
+
+```bash
+$env:HOST = "0.0.0.0"
+python run.py
+```
 
 ---
 
 ## 🌐 Running on the Public Network
 
-The application binds to `0.0.0.0` by default, which exposes it to your local network.
+Production configuration binds to `0.0.0.0`, which exposes the app to the network. Local development uses `127.0.0.1`.
 
 ### For full public internet access (optional):
 
@@ -155,7 +173,7 @@ https://deepfake-detection.onrender.com
 
 | Variable | Default | Description |
 |---|---|---|
-| `HOST` | `0.0.0.0` | Bind address |
+| `HOST` | `127.0.0.1` (development), `0.0.0.0` (production) | Bind address |
 | `PORT` | `5000` | HTTP port (Render injects its own) |
 | `APP_ENV` | `development` | `development` or `production` |
 
