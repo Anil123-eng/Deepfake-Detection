@@ -2,14 +2,13 @@
 Deepfake Detection Web Application.
 
 A Flask-based web interface that allows users to upload a video or image and
-get a real/fake prediction. The app is configured to run on the public network
-(host=0.0.0.0) so it can be accessed from other devices.
+get a real/fake prediction. The app runs on localhost by default.
 
 Usage:
     python run.py
     # or
     python app.py
-    # Set APP_ENV=production for production configuration
+    # Set APP_ENV=production only when a non-development configuration is needed
 """
 
 import json
@@ -24,8 +23,8 @@ from flask import Flask, jsonify, render_template, request, url_for
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-# Configure TensorFlow for constrained (cloud/free-tier) environments:
-#   - Use CPU only (Render free tier has no GPU).
+# Configure TensorFlow for local CPU environments:
+#   - Use CPU only for predictable local execution.
 #   - Limit memory growth so we don't get killed by the OS.
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
@@ -76,7 +75,7 @@ def get_video_model():
             try:
                 logger.info("Loading video model...")
                 # Lazy import so TensorFlow is not loaded at module import
-                # time (keeps gunicorn worker memory low on free tier).
+                # time and keeps startup lightweight.
                 from models.model_trainer import HybridModelTrainer
                 _video_model = HybridModelTrainer.load(config.MODEL_PATH)
                 logger.info("Video model loaded.")

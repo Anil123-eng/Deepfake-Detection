@@ -4,7 +4,7 @@
 - Detect BOTH images and videos using CNN + RNN technology.
 - Videos: existing hybrid CNN+RNN (25-frame sequence).
 - Images: single image treated as 1-frame sequence through the same hybrid CNN+RNN model.
-- Public internet access via ngrok / cloud documented.
+- Localhost access documented.
 - Fix dataset builder to skip non-video files.
 
 ## Steps
@@ -16,7 +16,7 @@
 - [x] 6. Update `static/js/main.js` for image upload + prediction.
 - [x] 7. Update `static/css/style.css` for image mode styling.
 - [x] 8. Fix `data/dataset_builder.py` to skip non-video files.
-- [x] 9. Update `README.md` with image API + public internet deployment docs.
+- [x] 9. Update `README.md` with image API + localhost setup docs.
 - [x] 10. Test the app (load model, run image & video prediction).
 - [x] 11. Fix image prediction shape bug in `app.py` (`/api/predict_image`).
       Root cause: the previous code checked `len(model.input_shape) == 4` against
@@ -26,6 +26,6 @@
       Fix: inspect the actual wrapped Keras model's input tensor (`getattr(model,
       'model', model).inputs[0].shape`) to choose 4D image vs 5D sequence input.
       Verified end-to-end: `/api/predict_image` returns 200 + valid prediction.
-- [x] 12. Reduce startup memory for Render free tier (lazy TensorFlow imports in
+- [x] 12. Reduce startup memory (lazy TensorFlow imports in
       `app.py`). App now imports in ~0.6s with `tensorflow` NOT loaded at module
       import; `/api/health` responds instantly.

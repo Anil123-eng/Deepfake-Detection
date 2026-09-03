@@ -3,8 +3,8 @@ Lightweight Image Classifier for Deepfake Detection.
 
 This is a purpose-built, lightweight CNN classifier designed for single-image
 deepfake detection. It is intentionally much smaller and faster than the
-hybrid CNN+RNN video model, making it suitable for constrained cloud
-environments (e.g. Render free tier) where memory and CPU are limited.
+hybrid CNN+RNN video model, making it suitable for local CPU environments
+where memory and CPU are limited.
 
 It uses MobileNetV2 (a compact, efficient backbone) as the feature extractor
 followed by global pooling and a small classifier head.
