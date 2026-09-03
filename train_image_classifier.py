@@ -4,7 +4,6 @@ Training script for the lightweight image classifier.
 This builds a lightweight MobileNetV2-based image classifier from the existing
 video dataset by sampling frames from the real/ and fake/ videos. It is much
 faster and lighter than the full hybrid CNN+RNN model, making it suitable for
-single-image detection on constrained cloud deployments (e.g. Render free tier).
 single-image detection on local CPU systems with limited memory.
 
 Usage:
